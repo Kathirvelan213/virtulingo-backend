@@ -12,7 +12,7 @@ import json
 from typing import Any, Dict, List
 
 from domain.interfaces.IRepositories import IWorldStateRepository
-from infrastructures.db import get_redis_client
+from infrastructures.redis import get_redis_client
 
 _STATE_TTL_SECONDS = 3600        # 1-hour session TTL
 _CONVERSATION_MAX_TURNS = 20     # Keep at most 20 turns per NPC in memory
