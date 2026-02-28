@@ -3,47 +3,38 @@ FastAPI Dependency Injection Providers
 
 This module provides dependency injection functions for FastAPI routes.
 All dependencies are stored in app.state.container and injected via Depends().
+API routers MUST only import from this file — never directly from application or infrastructure.
 """
 from fastapi import Depends, Request
 from typing import Annotated, Callable
 
 from application.ConversationManager import ConversationManager
 from application.GrammarManager import GrammarManager
+from application.WorldStateManager import WorldStateManager
+from application.ReviewScheduler import ReviewScheduler
 from domain.interfaces.IRepositories import (
     IWorldStateRepository,
     IMistakeRepository,
-    IPlayerProfileRepository
-)
-from domain.interfaces.IServices import (
-    ISTTService,
-    ITTSService,
-    ILLMService
+    INPCRepository,
 )
 
 
 def from_container(attr: str) -> Callable:
     """
-    Factory function to create a dependency that extracts an attribute from the container.
-
-    Args:
-        attr: Name of the attribute in app.state.container
-
-    Returns:
-        Dependency function that retrieves the attribute
+    Factory function to extract an attribute from app.state.container.
     """
     def dep(request: Request):
         return getattr(request.app.state.container, attr)
     return dep
 
 
-# Reusable Dependency Type Aliases
+# ── Manager Dependencies ──────────────────────────────────────────────────────
 ConversationManagerDep = Annotated[ConversationManager, Depends(from_container("conversation_manager"))]
 GrammarManagerDep = Annotated[GrammarManager, Depends(from_container("grammar_manager"))]
+WorldStateManagerDep = Annotated[WorldStateManager, Depends(from_container("world_state_manager"))]
+ReviewSchedulerDep = Annotated[ReviewScheduler, Depends(from_container("review_scheduler"))]
 
+# ── Repository Dependencies ───────────────────────────────────────────────────
 WorldStateRepoDep = Annotated[IWorldStateRepository, Depends(from_container("world_state_repo"))]
 MistakeRepoDep = Annotated[IMistakeRepository, Depends(from_container("mistake_repo"))]
-PlayerProfileRepoDep = Annotated[IPlayerProfileRepository, Depends(from_container("player_profile_repo"))]
-
-STTServiceDep = Annotated[ISTTService, Depends(from_container("stt_service"))]
-TTSServiceDep = Annotated[ITTSService, Depends(from_container("tts_service"))]
-LLMServiceDep = Annotated[ILLMService, Depends(from_container("llm_service"))]
+NPCRepoDep = Annotated[INPCRepository, Depends(from_container("npc_repo"))]

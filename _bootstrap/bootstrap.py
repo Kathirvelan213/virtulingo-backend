@@ -1,51 +1,55 @@
 """
-Dependency Injection Container
+Dependency Injection Container — bootstrap wiring of all concrete implementations.
 
-Pure dependency wiring with no FastAPI dependencies.
-All application dependencies are initialized here.
+Pure Python, no FastAPI imports. All infrastructure is instantiated here
+and wired into application-layer managers.
 """
-# from domain.interfaces.IRepositories import (
-#     IUserRepository,
-#     IOAuthCredentialsRepository,
-#     IEmailRepository,
-#     IEmailVectorRepository,
-#     ISummaryRepository,
-#     IDraftRepository,
-#     IEventRepository,
-#     ISyncStateRepository
-# )
-# from infrastructure.GoogleAuthService import GoogleAuthService
-# from infrastructure.repos.UserRepo import UserRepo
-# from infrastructure.repos.OAuthCredentialsRepo import OAuthCredentialsRepo
-# from infrastructure.repos.EmailRepo import EmailRepository
-# from infrastructure.repos.EmailVectorRepo import EmailVectorRepository
-# from infrastructure.repos.SummaryRepo import SummaryRepository
-# from infrastructure.repos.DraftRepo import DraftRepository
-# from infrastructure.repos.EventRepo import EventRepository
-# from infrastructure.repos.SyncStateRepo import SyncStateRepository
-# from application.AuthManager import AuthManager
+from application.ConversationManager import ConversationManager
+from application.GrammarManager import GrammarManager
+from application.WorldStateManager import WorldStateManager
+from application.ReviewScheduler import ReviewScheduler
 
+from infrastructures.LLM import OllamaLLM
+from infrastructures.SpeechToText import WhisperSTT
+from infrastructures.TextToSpeech import CoquiTTS
+from infrastructures.repos.WorldStateRepo import RedisWorldStateRepository
+from infrastructures.repos.MistakeRepo import PostgresMistakeRepository
+from infrastructures.repos.NPCRepo import PostgresNPCRepository
 
 
 class Container:
     def __init__(self):
-        # Repositories (Instantiate concrete classes)
-        self.world_state_repo = None # e.g., RedisWorldStateRepository()
-        self.mistake_repo = None
-        self.player_profile_repo = None
-        
-        # Services (Instantiate concrete classes)
-        self.stt_service = None # e.g., DeepgramSTTService()
-        self.tts_service = None
-        self.llm_service = None
-        
-        # Managers: Inject implementations directly into the orchestrators
+        # ── Infrastructure: AI services ──────────────────────────────
+        self.llm_service = OllamaLLM()
+        self.stt_service = WhisperSTT()
+        self.tts_service = CoquiTTS()
+
+        # ── Infrastructure: Repositories ─────────────────────────────
+        self.world_state_repo = RedisWorldStateRepository()
+        self.mistake_repo = PostgresMistakeRepository()
+        self.npc_repo = PostgresNPCRepository()
+
+        # ── Application: Managers (DI injected) ──────────────────────
         self.conversation_manager = ConversationManager(
             world_state_repo=self.world_state_repo,
+            mistake_repo=self.mistake_repo,
+            npc_repo=self.npc_repo,
+            player_profile_repo=None,    # TODO: add PlayerProfileRepository
             stt_service=self.stt_service,
             tts_service=self.tts_service,
-            llm_service=self.llm_service
+            llm_service=self.llm_service,
         )
-        self.grammar_manager = GrammarManager()
-        
-container=Container()
+
+        self.grammar_manager = GrammarManager(
+            llm_service=self.llm_service,
+            mistake_repo=self.mistake_repo,
+        )
+
+        self.world_state_manager = WorldStateManager(
+            world_state_repo=self.world_state_repo,
+        )
+
+        self.review_scheduler = ReviewScheduler(
+            llm_service=self.llm_service,
+            mistake_repo=self.mistake_repo,
+        )
