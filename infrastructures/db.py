@@ -3,6 +3,7 @@ from supabase import create_client, Client, ClientOptions
 from dotenv import load_dotenv
 from typing import Optional, Dict, List, Any
 import logging
+import ssl
 
 import asyncpg
 
@@ -206,14 +207,26 @@ _pg_pool: asyncpg.Pool | None = None
 async def get_postgres_pool() -> asyncpg.Pool:
     global _pg_pool
     if _pg_pool is None:
-        _pg_pool = await asyncpg.create_pool(
-            dsn=os.environ["SUPABASE_DB_URL"],
-            min_size=2,
-            max_size=10,
-            command_timeout=10,
-            ssl="require",                    # Supabase mandates SSL
-            statement_cache_size=0,           # Required for PgBouncer transaction pooler
-        )
+        try:
+            # Create SSL context for Supabase connection
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            
+            logger.info(f"Connecting to Supabase PostgreSQL: {os.environ.get('SUPABASE_DB_URL', 'NOT SET')[:50]}...")
+            
+            _pg_pool = await asyncpg.create_pool(
+                dsn=os.environ["SUPABASE_DB_URL"],
+                min_size=2,
+                max_size=10,
+                command_timeout=10,
+                ssl=ssl_context,              # Use SSL context with relaxed verification
+                statement_cache_size=0,       # Required for PgBouncer transaction pooler
+            )
+            logger.info("✅ PostgreSQL pool created successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to create PostgreSQL pool: {e}")
+            raise
     return _pg_pool
 
 
