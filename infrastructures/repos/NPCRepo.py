@@ -44,12 +44,12 @@ class PostgresNPCRepository(INPCRepository):
         # Return default NPC profile (for testing or when not found in DB)
         return {
             "npc_id": npc_id,
-            "name": "María",
+            "name": "Emma",
             "personality": "friendly, patient, encouraging",
-            "backstory": "A local shopkeeper who loves helping people learn Spanish",
-            "language_complexity": "A2",  # CEFR level
+            "backstory": "A local barista who loves helping people practice English conversation",
+            "language_complexity": "B1",  # CEFR level
             "emotional_tone": "warm",
-            "voice_id": "es-female-1",
+            "voice_id": "en-female-1",
         }
 
     async def update_relationship_score(

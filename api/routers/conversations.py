@@ -100,7 +100,12 @@ async def conversation_websocket(
         streaming_mode = False  # Can be toggled by client
 
         while True:
-            message = await websocket.receive()
+            try:
+                message = await websocket.receive()
+            except RuntimeError as e:
+                # Connection already closed by client
+                print(f"[WebSocket] Connection closed: {e}")
+                break
 
             if "bytes" in message:
                 # Accumulate audio chunks
@@ -117,8 +122,10 @@ async def conversation_websocket(
 
                     print(f"[WebSocket] Processing {len(audio_buffer)} bytes of audio...")
                     
-                    # Stream NPC audio response chunks back to Unity
-                    chunk_count = 0
+                    # Buffer audio and metadata separately to ensure proper ordering
+                    audio_chunks = []
+                    metadata_events = []
+                    
                     try:
                         async for item in orchestrator.process_conversation_turn(
                             player_id=player_id,
@@ -127,22 +134,34 @@ async def conversation_websocket(
                         ):
                             # Check if it's audio (bytes) or metadata (dict)
                             if isinstance(item, bytes):
-                                chunk_count += 1
-                                print(f"[WebSocket] Sending audio chunk #{chunk_count} ({len(item)} bytes)")
-                                await websocket.send_bytes(item)
+                                print(f"[WebSocket] Buffering audio chunk #{len(audio_chunks) + 1} ({len(item)} bytes)")
+                                audio_chunks.append(item)
                             elif isinstance(item, dict):
-                                # Send metadata events (transcription, npc_text, etc.)
-                                print(f"[WebSocket] Sending metadata event: {item.get('type')}")
-                                await websocket.send_text(json.dumps(item))
+                                # Buffer metadata events
+                                print(f"[WebSocket] Buffering metadata event: {item.get('type')}")
+                                metadata_events.append(item)
                         
-                        print(f"[WebSocket] Sent {chunk_count} audio chunks total")
+                        # CRITICAL: Send ALL audio chunks BEFORE any metadata
+                        # This prevents Unity from receiving turn_complete before audio arrives
+                        print(f"[WebSocket] Sending {len(audio_chunks)} audio chunks...")
+                        for idx, audio_chunk in enumerate(audio_chunks, 1):
+                            print(f"[WebSocket] Sending audio chunk #{idx}/{len(audio_chunks)} ({len(audio_chunk)} bytes)")
+                            await websocket.send_bytes(audio_chunk)
+                        
+                        print(f"[WebSocket] All {len(audio_chunks)} audio chunks sent successfully")
+                        
+                        # Now send metadata events
+                        for event in metadata_events:
+                            print(f"[WebSocket] Sending metadata event: {event.get('type')}")
+                            await websocket.send_text(json.dumps(event))
+                        
                     except Exception as e:
                         print(f"[WebSocket] Error during processing: {e}")
                         import traceback
                         traceback.print_exc()
                         raise
 
-                    # Signal turn complete
+                    # Signal turn complete ONLY after all audio + metadata sent
                     print("[WebSocket] Sending turn_complete signal")
                     await websocket.send_text(json.dumps({"type": "turn_complete"}))
                     audio_buffer.clear()
@@ -156,17 +175,22 @@ async def conversation_websocket(
                     }))
 
     except WebSocketDisconnect:
-        pass
+        print("[WebSocket] Client disconnected")
     except Exception as e:
+        print(f"[WebSocket] Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
         try:
             await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+            await websocket.close()
         except:
+            # Connection already closed
             pass
-        await websocket.close()
     finally:
         # Cleanup connection
         if player_id in _active_connections:
             del _active_connections[player_id]
+        print(f"[WebSocket] Cleaned up connection for player {player_id}")
 
 
 @router.websocket("/ws/stream/{player_id}/{npc_id}")

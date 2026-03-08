@@ -27,9 +27,20 @@ class WhisperSTT(ISpeechToText):
         )
 
     def _transcribe_sync(self, audio_bytes: bytes, language: str) -> str:
-        # Convert raw bytes to numpy audio
-        audio_buffer = io.BytesIO(audio_bytes)
-        audio, sr = sf.read(audio_buffer)
+        # Convert raw PCM16 bytes to numpy audio
+        # Unity sends raw PCM16 (16-bit signed integers, mono, 16000 Hz)
+        try:
+            # First try to read as a file format (WAV, etc.)
+            audio_buffer = io.BytesIO(audio_bytes)
+            audio, sr = sf.read(audio_buffer)
+        except:
+            # If that fails, assume raw PCM16 data from Unity
+            print("[WhisperSTT] Treating as raw PCM16 data (16kHz mono)")
+            # PCM16 = 16-bit signed integers = int16
+            audio = np.frombuffer(audio_bytes, dtype=np.int16)
+            # Normalize to [-1.0, 1.0] float range (required by Whisper)
+            audio = audio.astype(np.float32) / 32768.0
+            sr = 16000  # Unity sends at 16kHz
 
         if len(audio.shape) > 1:
             audio = np.mean(audio, axis=1)

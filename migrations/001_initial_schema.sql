@@ -45,7 +45,7 @@ VALUES
      'Pierre has run his boulangerie in Lyon for 30 years. He has little patience for fumbling tourists, but secretly enjoys teaching them about bread.',
      'A2',
      'gruff and impatient, but occasionally shows warmth',
-     'YOUR_ELEVENLABS_VOICE_ID_MALE_FRENCH'),
+     'en-US-GuyNeural'),  -- Azure: Male, mature, gruff voice
 
     ('student_claire',
      'Claire',
@@ -53,7 +53,7 @@ VALUES
      'Claire is studying French literature at Lyon University. She is eager to practice her English but will speak only French out of principle.',
      'B2',
      'warm, energetic, and curious',
-     'YOUR_ELEVENLABS_VOICE_ID_FEMALE_FRENCH'),
+     'en-US-JennyNeural'),  -- Azure: Female, young, energetic voice
 
     ('officer_dubois',
      'Inspecteur Dubois',
@@ -61,5 +61,13 @@ VALUES
      'Inspecteur Dubois is a veteran of the Lyon police with a strict adherence to rules. He is polite but formal and uses complex formal language.',
      'C1',
      'formal, precise, slightly intimidating',
-     'YOUR_ELEVENLABS_VOICE_ID_MALE_FORMAL')
+     'en-US-TonyNeural'),  -- Azure: Male, authoritative, formal voice
+
+    ('cashier_brown',
+     'Brown',
+     'a friendly supermarket cashier',
+     'Brown works at the local Carrefour supermarket. After 5 years of scanning groceries, he can make small talk on autopilot but appreciates genuine conversation. He is patient with language learners.',
+     'A2',
+     'friendly, practical, helpful',
+     'en-US-DavisNeural')  -- Azure: Male, friendly, casual voice
 ON CONFLICT (npc_id) DO NOTHING;

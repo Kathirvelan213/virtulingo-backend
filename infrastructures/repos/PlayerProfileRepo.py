@@ -20,9 +20,9 @@ class InMemoryPlayerProfileRepository(IPlayerProfileRepository):
         if player_id not in self._profiles:
             self._profiles[player_id] = {
                 "player_id": player_id,
-                "target_language": "Spanish",
-                "native_language": "English",
-                "proficiency_level": "A2",  # Elementary (CEFR scale: A1-C2)
+                "target_language": "English",
+                "native_language": "Spanish",
+                "proficiency_level": "B1",  # Intermediate (CEFR scale: A1-C2)
                 "session_count": 0,
                 "total_mistakes": 0,
                 "last_session": None,

@@ -5,9 +5,9 @@ Pure Python, no FastAPI imports. All infrastructure is instantiated here
 and wired into application-layer managers.
 
 Configuration:
-- LLM: Gemini (Google)
-- STT: Local Whisper (faster-whisper)
-- TTS: Local Coqui TTS
+- LLM: Groq (ultra-fast Llama inference)
+- STT: Azure Speech-to-Text (cloud STT)
+- TTS: Azure Speech Service (neural voices)
 """
 from application.ConversationManager import ConversationManager
 from application.GrammarManager import GrammarManager
@@ -15,9 +15,9 @@ from application.WorldStateManager import WorldStateManager
 from application.ReviewScheduler import ReviewScheduler
 from application.DialogueOrchestrator import DialogueOrchestrator
 
-from infrastructures.GeminiLLM import GeminiLLM
-from infrastructures.SpeechToText import WhisperSTT
-from infrastructures.TextToSpeech import CoquiTTS
+from infrastructures.GroqLLM import GroqLLM
+from infrastructures.AzureSTT import AzureSTT
+from infrastructures.AzureTTS import AzureTTS
 from infrastructures.repos.WorldStateRepo import RedisWorldStateRepository
 from infrastructures.repos.MistakeRepo import PostgresMistakeRepository
 from infrastructures.repos.NPCRepo import PostgresNPCRepository
@@ -33,20 +33,20 @@ class Container:
             print("[Container] Event bus initialized")
             
             # ── Infrastructure: AI services ──────────────────────────────
-            # LLM: Gemini (Google)
-            print("[Container] Initializing Gemini LLM...")
-            self.llm_service = GeminiLLM()
-            print("[Container] ✓ Gemini LLM initialized")
+            # LLM: Groq (ultra-fast Llama inference)
+            print("[Container] Initializing Groq LLM...")
+            self.llm_service = GroqLLM()
+            print("[Container] ✓ Groq LLM initialized")
             
-            # STT: Local Whisper (faster-whisper)
-            print("[Container] Initializing Whisper STT...")
-            self.stt_service = WhisperSTT()
-            print("[Container] ✓ Whisper STT initialized")
+            # STT: Azure Speech-to-Text (cloud STT)
+            print("[Container] Initializing Azure STT...")
+            self.stt_service = AzureSTT()
+            print("[Container] ✓ Azure STT initialized")
             
-            # TTS: Local Coqui TTS
-            print("[Container] Initializing Coqui TTS...")
-            self.tts_service = CoquiTTS()
-            print("[Container] ✓ Coqui TTS initialized")
+            # TTS: Azure Speech Service (fast, high-quality neural voices)
+            print("[Container] Initializing Azure TTS...")
+            self.tts_service = AzureTTS()
+            print("[Container] ✓ Azure TTS initialized")
 
             # ── Infrastructure: Repositories ─────────────────────────────
             print("[Container] Initializing Redis repository...")

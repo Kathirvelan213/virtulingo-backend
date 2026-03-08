@@ -34,9 +34,9 @@ class RedisWorldStateRepository(IWorldStateRepository):
             # Return sensible defaults for a new player
             return {
                 "player_id": player_id,
-                "language": "fr",
-                "proficiency_level": "A2",
-                "scene_id": "marketplace",
+                "language": "en",
+                "proficiency_level": "B1",
+                "scene_id": "coffee_shop",
                 "object_in_hand": None,
                 "nearby_npcs": [],
                 "active_quest": None,

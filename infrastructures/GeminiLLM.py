@@ -9,9 +9,11 @@ Env var: GOOGLE_API_KEY or GEMINI_API_KEY
 """
 
 import os
+import asyncio
 from typing import AsyncGenerator
 
 from google import genai
+from google.genai.errors import ServerError
 
 from domain.interfaces.ILargeLanguageModel import ILargeLanguageModel
 
@@ -25,9 +27,23 @@ class GeminiLLM(ILargeLanguageModel):
                 "Get a free key at https://aistudio.google.com"
             )
         
+        # Initialize client without timeout to use library defaults
         self._client = genai.Client(api_key=api_key)
-        self._model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+        self._model_name = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
         print(f"[GeminiLLM] Initialized with model: {self._model_name}")
+
+    async def _retry_with_backoff(self, func, *args, max_retries=2, **kwargs):
+        """Retry API calls with exponential backoff for 503 errors."""
+        for attempt in range(max_retries + 1):
+            try:
+                return func(*args, **kwargs)
+            except ServerError as e:
+                if e.status_code == 503 and attempt < max_retries:
+                    wait_time = 2 ** attempt  # 1s, 2s, 4s...
+                    print(f"[GeminiLLM] 503 error, retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise
 
     async def complete(self, system_prompt: str, user_message: str) -> str:
         """
@@ -36,7 +52,8 @@ class GeminiLLM(ILargeLanguageModel):
         """
         prompt = f"{system_prompt}\n\nUser input: {user_message}"
         
-        response = self._client.models.generate_content(
+        response = await self._retry_with_backoff(
+            self._client.models.generate_content,
             model=self._model_name,
             contents=prompt,
             config=genai.types.GenerateContentConfig(
@@ -58,18 +75,36 @@ class GeminiLLM(ILargeLanguageModel):
         
         print(f"[GeminiLLM] Starting streaming generation...")
         
-        response = self._client.models.generate_content_stream(
-            model=self._model_name,
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(
-                temperature=0.8,
-            )
-        )
-        
-        for chunk in response:
-            if chunk.text:
-                print(f"[GeminiLLM] Yielding chunk: '{chunk.text[:50]}...'")
-                yield chunk.text
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                response = self._client.models.generate_content_stream(
+                    model=self._model_name,
+                    contents=prompt,
+                    config=genai.types.GenerateContentConfig(
+                        temperature=0.8,
+                    )
+                )
+                
+                for chunk in response:
+                    if chunk.text:
+                        print(f"[GeminiLLM] Yielding chunk: '{chunk.text[:50]}...'")
+                        yield chunk.text
+                
+                # Successful completion, exit retry loop
+                break
+                
+            except ServerError as e:
+                if e.status_code == 503 and attempt < max_retries:
+                    wait_time = 2 ** attempt
+                    print(f"[GeminiLLM] 503 error in streaming, retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                else:
+                    print(f"[GeminiLLM] ❌ Gemini API unavailable after {attempt + 1} attempts")
+                    raise Exception(
+                        f"Gemini API is experiencing high demand. "
+                        f"Please try again in a few moments. (Model: {self._model_name})"
+                    )
 
 
 class GeminiLLMConfigurable(ILargeLanguageModel):
