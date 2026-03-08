@@ -94,7 +94,26 @@ async def conversation_websocket(
     
     # Register connection for event broadcasting
     _active_connections[player_id] = websocket
-    
+
+    # Subscribe to event bus to forward grammar_correction events over this WebSocket
+    event_bus = websocket.app.state.container.event_bus
+
+    async def grammar_correction_handler(event):
+        if event.metadata.get("player_id") != player_id:
+            return
+        try:
+            await websocket.send_text(json.dumps({
+                "type": "grammar_correction",
+                "player_id": player_id,
+                "data": event.data,
+                "timestamp": event.timestamp.isoformat() if event.timestamp else None,
+            }))
+            print(f"[WebSocket] Sent grammar_correction to {player_id}: {event.data}")
+        except Exception as e:
+            print(f"[WebSocket] Failed to send grammar_correction to {player_id}: {e}")
+
+    event_bus.subscribe("grammar_correction", grammar_correction_handler)
+
     try:
         audio_buffer = bytearray()
         streaming_mode = False  # Can be toggled by client
@@ -187,7 +206,8 @@ async def conversation_websocket(
             # Connection already closed
             pass
     finally:
-        # Cleanup connection
+        # Cleanup connection and event bus subscription
+        event_bus.unsubscribe("grammar_correction", grammar_correction_handler)
         if player_id in _active_connections:
             del _active_connections[player_id]
         print(f"[WebSocket] Cleaned up connection for player {player_id}")

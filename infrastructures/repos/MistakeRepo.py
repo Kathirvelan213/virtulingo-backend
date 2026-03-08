@@ -85,8 +85,3 @@ class PostgresMistakeRepository(IMistakeRepository):
         except Exception as e:
             print(f"[MistakeRepo] Database error: {e}")
             return []  # Return empty list if DB unavailable
-    
-    async def log_mistake(
-        self, player_id: str, category: str, original: str, correction: str, explanation: str
-    ) -> None:
-        await self.log_mistake(player_id, category, original, correction, explanation, severity=1)

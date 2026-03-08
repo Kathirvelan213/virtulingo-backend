@@ -38,7 +38,8 @@ class IMistakeRepository(ABC):
 
     @abstractmethod
     async def log_mistake(
-        self, player_id: str, category: str, original: str, correction: str, explanation: str
+        self, player_id: str, category: str, original: str, correction: str, explanation: str,
+        severity: int = 1
     ) -> None:
         """Persist a single grammar mistake event."""
         ...

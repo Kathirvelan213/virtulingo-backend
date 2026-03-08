@@ -94,21 +94,34 @@ class AzureTTS(ITextToSpeech):
         print(f"[AzureTTS] Generating audio for text (len={len(text)}): '{text[:100]}...'")
         print(f"[AzureTTS] Using voice: {voice_id or self.speech_config.speech_synthesis_voice_name}")
         
-        synthesizer = self._get_synthesizer(voice_id)
-        result = synthesizer.speak_text(text)
-        
-        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
-            print(f"[AzureTTS] Successfully generated {len(result.audio_data)} bytes")
-            return result.audio_data
-        elif result.reason == speechsdk.ResultReason.Canceled:
-            cancellation = result.cancellation_details
-            error_msg = f"Azure TTS failed: {cancellation.reason} - {cancellation.error_details}"
-            print(f"[AzureTTS] ERROR: {error_msg}")
-            raise Exception(error_msg)
-        else:
-            error_msg = f"Azure TTS failed with reason: {result.reason}"
-            print(f"[AzureTTS] ERROR: {error_msg}")
-            raise Exception(error_msg)
+        cache_key = voice_id or self.speech_config.speech_synthesis_voice_name
+
+        for attempt in (1, 2):
+            synthesizer = self._get_synthesizer(voice_id)
+            result = synthesizer.speak_text(text)
+
+            if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+                print(f"[AzureTTS] Successfully generated {len(result.audio_data)} bytes (attempt {attempt})")
+                return result.audio_data
+
+            elif result.reason == speechsdk.ResultReason.Canceled:
+                cancellation = result.cancellation_details
+                error_msg = f"Azure TTS failed: {cancellation.reason} - {cancellation.error_details}"
+                print(f"[AzureTTS] ERROR (attempt {attempt}): {error_msg}")
+
+                # Stale connection — evict the cached synthesizer so next attempt gets a fresh one
+                if cache_key in self._synthesizer_cache:
+                    print(f"[AzureTTS] Evicting stale synthesizer for voice: {cache_key}")
+                    del self._synthesizer_cache[cache_key]
+
+                if attempt == 2:
+                    raise Exception(error_msg)
+                print(f"[AzureTTS] Retrying with a fresh synthesizer...")
+
+            else:
+                error_msg = f"Azure TTS failed with reason: {result.reason}"
+                print(f"[AzureTTS] ERROR: {error_msg}")
+                raise Exception(error_msg)
 
     async def synthesize(self, text: str, voice_id: str = None) -> bytes:
         """
@@ -129,33 +142,38 @@ class AzureTTS(ITextToSpeech):
     ) -> AsyncGenerator[bytes, None]:
         """
         Streaming synthesis:
-        Buffers text until sentence boundary, generates audio, yields bytes.
-        
-        This allows Unity to start playing audio before the full response is complete.
+        Buffers text until sentence boundary OR max char limit, generates audio, yields bytes.
+
+        Flushing at a character cap prevents Azure RTF timeouts on long sentences.
         """
         buffer_parts = []
         sentence_count = 0
+        MAX_CHARS = 80  # flush before Azure's RTF threshold kicks in
 
         async for chunk in text_stream:
             buffer_parts.append(chunk)
             assembled = "".join(buffer_parts)
 
-            # Yield at sentence boundaries for faster playback
-            if any(assembled.endswith(p) for p in (".", "!", "?")):
-                sentence_count += 1
-                print(f"[AzureTTS] Synthesizing sentence #{sentence_count}: '{assembled[:50]}...'")
-                audio_bytes = await self.synthesize(assembled, voice_id)
-                print(f"[AzureTTS] Generated {len(audio_bytes)} bytes for sentence #{sentence_count}")
-                yield audio_bytes
+            at_boundary = any(assembled.endswith(p) for p in (".", "!", "?", ","))
+            over_limit   = len(assembled) >= MAX_CHARS
+
+            if at_boundary or over_limit:
+                text_to_speak = assembled.strip()
+                if text_to_speak:
+                    sentence_count += 1
+                    print(f"[AzureTTS] Synthesizing chunk #{sentence_count} ({len(text_to_speak)} chars): '{text_to_speak[:60]}'")
+                    audio_bytes = await self.synthesize(text_to_speak, voice_id)
+                    print(f"[AzureTTS] Generated {len(audio_bytes)} bytes for chunk #{sentence_count}")
+                    yield audio_bytes
                 buffer_parts = []
 
         # Flush remainder
         remainder = "".join(buffer_parts).strip()
         if remainder:
             sentence_count += 1
-            print(f"[AzureTTS] Synthesizing final chunk: '{remainder[:50]}...'")
+            print(f"[AzureTTS] Synthesizing final chunk: '{remainder[:60]}'")
             audio_bytes = await self.synthesize(remainder, voice_id)
             print(f"[AzureTTS] Generated {len(audio_bytes)} bytes for final chunk")
             yield audio_bytes
-        
-        print(f"[AzureTTS] Stream complete. Total sentences: {sentence_count}")
+
+        print(f"[AzureTTS] Stream complete. Total chunks: {sentence_count}")
