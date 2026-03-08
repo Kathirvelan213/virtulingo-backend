@@ -54,17 +54,19 @@ You are {npc_name}, {npc_personality}. {npc_backstory}
 
 WORLD CONTEXT:
 - Scene: {scene_id}
+- Scene description: {scene_description}
 - Player is holding: {object_in_hand}
 - Active quest: {active_quest}
 - Your relationship with the player: {relationship_score}/10 (0=stranger, 10=best friend)
 
 LINGUISTIC RULES:
-- Respond ONLY in {target_language}. NEVER use English.
+- Respond ONLY in {target_language}. Do not switch to any other language.
 - Match CEFR level: {npc_cefr}
-- Keep responses conversational and concise (2-4 sentences max)
+- Use SHORT, SIMPLE sentences. Maximum 2 sentences per reply. Never write long paragraphs.
+- Use everyday vocabulary. Avoid complex or rare words.
 - Adapt to player's proficiency level ({proficiency_level})
-  - If they speak simply, use simpler vocabulary and grammar
-  - If they speak fluently, respond naturally at your CEFR level
+  - If they speak simply, keep your reply even simpler
+  - If they speak fluently, respond naturally but stay brief
 - Stay in character. NEVER correct their grammar explicitly.
 - React to both their words AND the world context
 
@@ -75,6 +77,17 @@ RECENT CONVERSATION:
 
 Respond naturally as {npc_name}.
 """
+
+
+# Maps scene_id values to a human-readable description injected into the LLM prompt.
+# Add new scenes here as the game grows.
+_SCENE_DESCRIPTIONS = {
+    "supermarket": "A large, well-stocked supermarket. Shelves are full of fruits, vegetables, dairy, meat, canned goods, drinks, snacks, bread, and household items. Prices are displayed on shelf labels.",
+    "coffee_shop": "A cozy coffee shop. The menu includes hot drinks, cold drinks, pastries, sandwiches, and cakes. Prices are on the menu board behind the counter.",
+    "marketplace": "An outdoor street market with stalls selling fresh produce, fish, cheese, bread, flowers, and local crafts.",
+    "restaurant": "A sit-down restaurant. The waiter can take orders, explain the menu, and bring the bill.",
+    "bakery": "A traditional bakery selling fresh bread, baguettes, croissants, pastries, and cakes.",
+}
 
 
 class DialogueOrchestrator:
@@ -133,7 +146,7 @@ class DialogueOrchestrator:
         # Step 1: Transcribe audio to text
         print(f"[Orchestrator] Step 1: Getting player state...")
         state = await self._world_state.get_player_state(player_id)
-        language = state.get("language", "fr")
+        language = state.get("language", "en")
         
         print(f"[Orchestrator] Step 1: Transcribing {len(audio_bytes)} bytes of audio (language={language})...")
         player_text = await self._stt.transcribe(audio_bytes, language=language)
@@ -205,7 +218,7 @@ class DialogueOrchestrator:
             NPC audio response chunks
         """
         state = await self._world_state.get_player_state(player_id)
-        language = state.get("language", "fr")
+        language = state.get("language", "en")
         
         # Step 1: Streaming STT
         transcript_parts = []
@@ -300,16 +313,23 @@ class DialogueOrchestrator:
             f"{'PLAYER' if t['role'] == 'player' else npc_profile['name'].upper()}: {t['content']}"
             for t in history
         ) or "(First interaction)"
-        
+
+        scene_id = state.get("scene_id", "supermarket")
+        scene_description = _SCENE_DESCRIPTIONS.get(
+            scene_id,
+            f"A {scene_id.replace('_', ' ')} setting."
+        )
+
         return _NPC_SYSTEM_PROMPT.format(
             npc_name=npc_profile["name"],
             npc_personality=npc_profile["personality"],
             npc_backstory=npc_profile["backstory"],
-            scene_id=state.get("scene_id", "unknown"),
+            scene_id=scene_id,
+            scene_description=scene_description,
             object_in_hand=state.get("object_in_hand") or "nothing",
             active_quest=state.get("active_quest") or "none",
             relationship_score=int(npc_profile.get("relationship_score", 0.0) * 10),
-            target_language=state.get("language", "French"),
+            target_language=state.get("language", "English"),
             npc_cefr=npc_profile.get("language_complexity", "B1"),
             emotional_tone=npc_profile.get("emotional_tone", "neutral"),
             proficiency_level=player_profile.get("proficiency_level", "A2"),

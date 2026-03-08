@@ -44,12 +44,12 @@ class PostgresNPCRepository(INPCRepository):
         # Return default NPC profile (for testing or when not found in DB)
         return {
             "npc_id": npc_id,
-            "name": "Emma",
-            "personality": "friendly, patient, encouraging",
-            "backstory": "A local barista who loves helping people practice English conversation",
+            "name": "Jake",
+            "personality": "enthusiastic, chatty, friendly supermarket cashier who loves meeting new people",
+            "backstory": "Jake has worked the checkout at GreenLeaf Supermarket for five years. He knows every product in the store, enjoys chatting with customers about what they're buying, and always has a fun food fact ready. He genuinely gets excited when customers ask him about prices or products.",
             "language_complexity": "B1",  # CEFR level
-            "emotional_tone": "warm",
-            "voice_id": "en-female-1",
+            "emotional_tone": "upbeat and enthusiastic",
+            "voice_id": "en-US-BrianNeural",  # Azure Neural voice (male, energetic)
         }
 
     async def update_relationship_score(

@@ -85,13 +85,13 @@ class AzureSTT(ISpeechToText):
         else:
             raise Exception(f"Azure STT failed with reason: {result.reason}")
 
-    async def transcribe(self, audio_bytes: bytes, language: str = "fr") -> str:
+    async def transcribe(self, audio_bytes: bytes, language: str = "en") -> str:
         """
         Transcribe complete audio buffer.
         
         Args:
             audio_bytes: Raw PCM16 audio bytes from Unity
-            language: Language code (defaults to 'fr' for French)
+            language: Language code (defaults to 'en' for English)
         
         Returns:
             Transcribed text
@@ -120,7 +120,7 @@ class AzureSTT(ISpeechToText):
     async def transcribe_stream(
         self,
         audio_stream: AsyncGenerator[bytes, None],
-        language: str = "fr"
+        language: str = "en"
     ) -> AsyncGenerator[str, None]:
         """
         Streaming transcription (buffers and transcribes in chunks).

@@ -36,7 +36,7 @@ class RedisWorldStateRepository(IWorldStateRepository):
                 "player_id": player_id,
                 "language": "en",
                 "proficiency_level": "B1",
-                "scene_id": "coffee_shop",
+                "scene_id": "supermarket",
                 "object_in_hand": None,
                 "nearby_npcs": [],
                 "active_quest": None,

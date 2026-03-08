@@ -99,7 +99,7 @@ class ConversationManager:
         """
         # 1. Transcribe
         state = await self._world_state.get_player_state(player_id)
-        language = state.get("language", "fr")
+        language = state.get("language", "en")
         player_text = await self._stt.transcribe(audio_bytes, language=language)
 
         if not player_text.strip():
@@ -162,7 +162,7 @@ class ConversationManager:
             object_in_hand=state.get("object_in_hand") or "nothing",
             active_quest=state.get("active_quest") or "none",
             relationship_score=npc_profile.get("relationship_score", 0.0),
-            target_language=state.get("language", "fr"),
+            target_language=state.get("language", "en"),
             npc_cefr=npc_profile["language_complexity"],
             emotional_tone=npc_profile["emotional_tone"],
             proficiency_level=player_profile.get("proficiency_level", "A2"),

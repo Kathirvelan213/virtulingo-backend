@@ -38,7 +38,7 @@ class GrammarManager:
         self._mistakes = mistake_repo
 
     async def correct(
-        self, player_id: str, utterance: str, target_language: str = "French"
+        self, player_id: str, utterance: str, target_language: str = "English"
     ) -> GrammarCorrectionResult:
         """
         Analyze a player's utterance for grammar mistakes.

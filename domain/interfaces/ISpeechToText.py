@@ -9,7 +9,7 @@ class ISpeechToText(ABC):
     """
 
     @abstractmethod
-    async def transcribe(self, audio_bytes: bytes, language: str = "fr") -> str:
+    async def transcribe(self, audio_bytes: bytes, language: str = "en") -> str:
         """
         Transcribe a complete audio buffer to text.
 
@@ -24,7 +24,7 @@ class ISpeechToText(ABC):
 
     @abstractmethod
     async def transcribe_stream(
-        self, audio_stream: AsyncGenerator[bytes, None], language: str = "fr"
+        self, audio_stream: AsyncGenerator[bytes, None], language: str = "en"
     ) -> AsyncGenerator[str, None]:
         """
         Transcribe a live audio stream, yielding partial text chunks as they arrive.

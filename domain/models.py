@@ -17,7 +17,7 @@ class PlayerState:
     This is what gets injected into LLM system prompts.
     """
     player_id: str
-    language: str = "fr"                     # Target language being learned (BCP-47)
+    language: str = "en"                     # Target language being learned (BCP-47)
     proficiency_level: str = "A2"            # CEFR: A1, A2, B1, B2, C1, C2
     scene_id: str = "marketplace"
     position: PlayerPosition = field(default_factory=lambda: PlayerPosition(0, 0, 0))

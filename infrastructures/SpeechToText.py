@@ -54,7 +54,7 @@ class WhisperSTT(ISpeechToText):
         transcript = " ".join([segment.text for segment in segments])
         return transcript.strip()
 
-    async def transcribe(self, audio_bytes: bytes, language: str = "fr") -> str:
+    async def transcribe(self, audio_bytes: bytes, language: str = "en") -> str:
         """
         Transcribe complete audio buffer.
         """
@@ -66,8 +66,7 @@ class WhisperSTT(ISpeechToText):
     async def transcribe_stream(
         self,
         audio_stream: AsyncGenerator[bytes, None],
-        language: str = "fr"
-    ) -> AsyncGenerator[str, None]:
+        language: str = "en"    ) -> AsyncGenerator[str, None]:
         """
         Simulated streaming transcription.
         Buffers audio until pause threshold and transcribes.

@@ -6,6 +6,7 @@ All dependencies are stored in app.state.container and injected via Depends().
 API routers MUST only import from this file — never directly from application or infrastructure.
 """
 from fastapi import Depends
+from starlette.requests import HTTPConnection
 from typing import Annotated, Callable
 
 from application.ConversationManager import ConversationManager
@@ -26,8 +27,8 @@ def from_container(attr: str) -> Callable:
     Works with both HTTP (Request) and WebSocket endpoints.
     FastAPI automatically injects the appropriate type.
     """
-    def dep(conn):
-        # conn can be either Request or WebSocket
+    def dep(conn: HTTPConnection):
+        # conn can be either Request or WebSocket — both inherit from HTTPConnection
         # Both have .app.state attribute
         result = getattr(conn.app.state.container, attr)
         print(f"[Dependency] Injected {attr}")

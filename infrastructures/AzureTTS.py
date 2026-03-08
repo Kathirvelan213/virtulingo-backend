@@ -16,6 +16,8 @@ from domain.interfaces.ITextToSpeech import ITextToSpeech
 
 
 class AzureTTS(ITextToSpeech):
+    _synthesizer_cache: dict  # voice_id -> SpeechSynthesizer
+
     def __init__(self):
         """
         Initialize Azure Speech Service.
@@ -49,7 +51,34 @@ class AzureTTS(ITextToSpeech):
             speechsdk.SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm
         )
         
+        self._synthesizer_cache = {}
         print(f"[AzureTTS] Initialized with voice: {self.speech_config.speech_synthesis_voice_name}")
+
+    def _get_synthesizer(self, voice_id: str = None) -> speechsdk.SpeechSynthesizer:
+        """
+        Return a cached SpeechSynthesizer for the given voice.
+        Creating a new synthesizer on each call opens a fresh TCP connection to Azure,
+        adding hundreds of milliseconds of latency per sentence.
+        """
+        key = voice_id or self.speech_config.speech_synthesis_voice_name
+        if key not in self._synthesizer_cache:
+            if voice_id:
+                config = speechsdk.SpeechConfig(
+                    subscription=self.speech_config.subscription_key,
+                    region=self.speech_config.region
+                )
+                config.speech_synthesis_voice_name = voice_id
+                config.set_speech_synthesis_output_format(
+                    speechsdk.SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm
+                )
+            else:
+                config = self.speech_config
+            self._synthesizer_cache[key] = speechsdk.SpeechSynthesizer(
+                speech_config=config,
+                audio_config=None  # None = return audio data in-memory
+            )
+            print(f"[AzureTTS] Created new synthesizer for voice: {key}")
+        return self._synthesizer_cache[key]
 
     def _generate_audio_bytes(self, text: str, voice_id: str = None) -> bytes:
         """
@@ -65,26 +94,7 @@ class AzureTTS(ITextToSpeech):
         print(f"[AzureTTS] Generating audio for text (len={len(text)}): '{text[:100]}...'")
         print(f"[AzureTTS] Using voice: {voice_id or self.speech_config.speech_synthesis_voice_name}")
         
-        # Create a one-time synthesizer
-        if voice_id:
-            # Override voice temporarily
-            config = speechsdk.SpeechConfig(
-                subscription=self.speech_config.subscription_key,
-                region=self.speech_config.region
-            )
-            config.speech_synthesis_voice_name = voice_id
-            config.set_speech_synthesis_output_format(
-                speechsdk.SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm
-            )
-        else:
-            config = self.speech_config
-        
-        # Synthesize to memory stream
-        synthesizer = speechsdk.SpeechSynthesizer(
-            speech_config=config,
-            audio_config=None  # None = return audio data
-        )
-        
+        synthesizer = self._get_synthesizer(voice_id)
         result = synthesizer.speak_text(text)
         
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:

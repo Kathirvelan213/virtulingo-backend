@@ -287,7 +287,7 @@ async def correct_utterance(
     This bypasses the real-time conversation flow for explicit grammar checks.
     """
     utterance = body.get("utterance", "")
-    language = body.get("language", "French")
+    language = body.get("language", "English")
 
     result = await orchestrator.get_grammar_correction(
         player_id=player_id,
